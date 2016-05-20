@@ -988,7 +988,7 @@ bool insideMatrix(){
         id window;
         id capview;
         NSColor *windowColor;
-        switch (coveringWindowKind) {
+        switch (coveringWindowKind = -5) {
             case coveringWindowBackground: {
                 window = [[NSWindow alloc] initWithContentRect:rect styleMask:styleMask backing: NSBackingStoreBuffered defer:NO screen:iterScreen];
                 capview = [[CapView alloc] initWithFrame:rect];
@@ -1941,12 +1941,12 @@ bool insideMatrix(){
         [self coverScreens];
         
         // Switch the proper kiosk mode on again
-        [self setElevateWindowLevels];
+        //[self setElevateWindowLevels];
         
         //    [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
         
         BOOL allowSwitchToThirdPartyApps = [preferences secureBoolForKey:@"org_safeexambrowser_SEB_allowSwitchToApplications"];
-        [self switchKioskModeAppsAllowed:allowSwitchToThirdPartyApps overrideShowMenuBar:NO];
+        //[self switchKioskModeAppsAllowed:allowSwitchToThirdPartyApps overrideShowMenuBar:NO];
         
         [[NSRunningApplication currentApplication] activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
         [self.browserController.mainBrowserWindow makeKeyAndOrderFront:self];
