@@ -406,7 +406,7 @@
             return;
         }
         // Decrypt and store the .seb config file
-        if ([self.configFileManager storeDecryptedSEBSettings:sebData forEditing:YES]) {
+        if ([self.configFileManager storeDecryptedSEBSettings:sebData forEditing:YES] == storeDecryptedSEBSettingsResultSuccess) {
             // if successfull save the path to the file for possible editing in the preferences window
             [[MyGlobals sharedMyGlobals] setCurrentConfigURL:sebFileURL];
             
@@ -421,6 +421,21 @@
 - (BOOL) editingSettingsFile
 {
     return [[[MyGlobals sharedMyGlobals] currentConfigURL] isFileURL];
+}
+
+
+// Check if passwords are confirmed and save changed passwords in the General pane
+- (BOOL) passwordsConfirmedAndSaved
+{
+    // Check if passwords are confirmed and save them if yes
+    if ([self arePasswordsUnconfirmed]) {
+        return NO;
+    }
+    
+    // Save settings in the General pane
+    [self.generalVC windowWillClose:[NSNotification notificationWithName:NSWindowWillCloseNotification object:nil]];
+ 
+    return YES;
 }
 
 
@@ -563,8 +578,11 @@
 // Save preferences and restart SEB with the new settings
 - (IBAction) restartSEB:(id)sender {
 
-    // Save passwords in General pane
-	[self.generalVC windowWillClose:[NSNotification notificationWithName:NSWindowWillCloseNotification object:nil]];
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
 
     NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
     NSData *oldBrowserExamKey = [preferences secureObjectForKey:@"org_safeexambrowser_currentData"];
@@ -661,9 +679,12 @@
 // Save preferences and quit SEB
 - (IBAction) quitSEB:(id)sender {
 
-    // Save passwords in General pane
-	[self.generalVC windowWillClose:[NSNotification notificationWithName:NSWindowWillCloseNotification object:nil]];
-
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
     NSData *oldBrowserExamKey = [preferences secureObjectForKey:@"org_safeexambrowser_currentData"];
     
@@ -741,7 +762,14 @@
 }
 
 
-- (IBAction) openSEBPrefs:(id)sender {
+- (IBAction) openSEBPrefs:(id)sender
+{
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     // If private settings are active, check if those current settings have unsaved changes
     if (NSUserDefaults.userDefaultsPrivate && [[SEBCryptor sharedSEBCryptor] updateEncryptedUserDefaults:NO updateSalt:NO]) {
         // There are unsaved changes
@@ -802,13 +830,11 @@
 // with parameter indicating if the saved settings file URL should be updated
 - (BOOL) savePrefsAs:(BOOL)saveAs fileURLUpdate:(BOOL)fileURLUpdate
 {
-    // Check if passwords are confirmed
-    if ([self arePasswordsUnconfirmed]) {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
         return NO;
     }
-    
-    // Save settings in the General pane
-    [self.generalVC windowWillClose:[NSNotification notificationWithName:NSWindowWillCloseNotification object:nil]];
    
     // Get selected config purpose
     sebConfigPurposes configPurpose = [self.configFileVC getSelectedConfigPurpose];
@@ -987,6 +1013,12 @@
 // Action reverting preferences to default settings
 - (IBAction) revertToDefaultSettings:(id)sender
 {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     // Check if current settings have unsaved changes
     if ([[SEBCryptor sharedSEBCryptor] updateEncryptedUserDefaults:NO updateSalt:NO]) {
         // There are unsaved changes
@@ -1067,6 +1099,12 @@
 // Action reverting preferences to local client settings
 - (IBAction) revertToLocalClientSettings:(id)sender
 {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     // Check if current settings have unsaved changes
     if ([[SEBCryptor sharedSEBCryptor] updateEncryptedUserDefaults:NO updateSalt:NO]) {
         // There are unsaved changes
@@ -1123,6 +1161,12 @@
 // Action reverting preferences to the last saved or opened file
 - (IBAction) revertToLastSaved:(id)sender
 {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     // Check if current settings have unsaved changes
     if ([[SEBCryptor sharedSEBCryptor] updateEncryptedUserDefaults:NO updateSalt:NO]) {
         // There are unsaved changes
@@ -1168,7 +1212,7 @@
             self.configFileManager.currentConfigKeyRef = _currentConfigKeyRef;
             
             // Decrypt and store the .seb config file
-            if ([self.configFileManager storeDecryptedSEBSettings:sebData forEditing:YES]) {
+            if ([self.configFileManager storeDecryptedSEBSettings:sebData forEditing:YES] == storeDecryptedSEBSettingsResultSuccess) {
                 
                 [[MBPreferencesController sharedController] setSettingsFileURL:[[MyGlobals sharedMyGlobals] currentConfigURL]];
                 [self reopenPreferencesWindow];
@@ -1185,6 +1229,12 @@
 // Action duplicating current preferences for editing
 - (IBAction) editDuplicate:(id)sender
 {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
    /// Using local or private defaults?
     if (NSUserDefaults.userDefaultsPrivate) {
         
@@ -1278,6 +1328,12 @@
 // Action configuring client with currently edited preferences
 - (IBAction) configureClient:(id)sender
 {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     NSUserDefaults *preferences = [NSUserDefaults standardUserDefaults];
 
     // If opening the preferences window isn't allowed in these settings,
@@ -1331,18 +1387,19 @@
 // Action applying currently edited preferences, closing preferences window and restarting SEB
 - (IBAction) applyAndRestartSEB:(id)sender
 {
+    // Check if passwords are confirmed and save them if yes
+    if (![self passwordsConfirmedAndSaved]) {
+        // If they were not confirmed, return
+        return;
+    }
+    
     // Close preferences window (if user doesn't cancel it) but without asking to apply settings
     // this also triggers a SEB restart
     if ([self conditionallyClosePreferencesWindowAskToApply:NO]) {
         // Close preferences window manually (as windowShouldClose: won't be called)
         [self closePreferencesWindow];
-        if (restartSEB) {
-            [[NSNotificationCenter defaultCenter]
-             postNotificationName:@"preferencesClosedRestartSEB" object:self];
-        } else {
-            [[NSNotificationCenter defaultCenter]
-             postNotificationName:@"preferencesClosed" object:self];
-        }
+        [[NSNotificationCenter defaultCenter]
+         postNotificationName:@"preferencesClosedRestartSEB" object:self];
     }
 }
 

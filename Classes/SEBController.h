@@ -87,6 +87,13 @@
     IBOutlet NSWindow *enterPasswordDialogWindow;
     IBOutlet NSTextField *enterPasswordDialog;
     
+    IBOutlet NSWindow *enterUsernamePasswordDialogWindow;
+    IBOutlet NSTextField *enterUsernamePasswordText;
+    __weak IBOutlet NSTextField *usernameTextField;
+    __weak IBOutlet NSSecureTextField *passwordSecureTextField;
+    id senderModalDelegate;
+    SEL senderDidEndSelector;
+    
     IBOutlet SEBDockItemTime *sebDockItemTime;
     	
 	IOPMAssertionID assertionID1;
@@ -106,7 +113,6 @@
 - (void) coverScreens;
 - (void) adjustScreenLocking:(id)sender;
 - (void) startTask;
-- (void) terminateScreencapture;
 - (void) regainActiveStatus:(id)sender;
 - (void) SEBgotActive:(id)sender;
 - (void) startKioskMode;
@@ -114,6 +120,14 @@
 - (NSInteger) showEnterPasswordDialog:(NSString *)text modalForWindow:(NSWindow *)window windowTitle:(NSString *)title;
 - (IBAction) okEnterPassword: (id)sender;
 - (IBAction) cancelEnterPassword: (id)sender;
+
+- (void) showEnterUsernamePasswordDialog:(NSString *)text
+                          modalForWindow:(NSWindow *)window
+                             windowTitle:(NSString *)title
+                                username:(NSString *)username
+                           modalDelegate:(id)modalDelegate
+                          didEndSelector:(SEL)didEndSelector;
+- (void) hideEnterUsernamePasswordDialog;
 
 - (IBAction) exitSEB:(id)sender;
 - (void) requestedQuitWPwd:(id)sender;
@@ -138,7 +152,7 @@
 @property(strong) IBOutlet id preferencesController;
 @property(strong) IBOutlet SEBSystemManager *systemManager;
 @property(strong) SEBDockController *dockController;
-@property(strong) SEBOSXBrowserController *browserController;
+@property(nonatomic, retain) SEBOSXBrowserController *browserController;
 @property(strong) NSDate *didResignActiveTime;
 @property(strong) NSDate *didBecomeActiveTime;
 @property(strong) NSDate *didResumeExamTime;

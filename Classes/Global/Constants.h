@@ -88,9 +88,10 @@ typedef NSUInteger coveringWindowKind;
 
 
 enum {
-    certificateTypeSSLClientCertificate         = 0,
+    certificateTypeSSL                          = 0,
     certificateTypeIdentity                     = 1,
-    certificateTypeCA                           = 2
+    certificateTypeCA                           = 2,
+    certificateTypeSSLDebug                     = 3
 };
 typedef NSUInteger certificateTypes;
 
@@ -148,7 +149,8 @@ typedef NSUInteger sebConfigPurposes;
 
 enum {
     SEBEnterPasswordCancel                      = 0,
-    SEBEnterPasswordOK                          = 1
+    SEBEnterPasswordOK                          = 1,
+    SEBEnterPasswordAborted                     = 2
 };
 typedef NSUInteger SEBEnterPasswordResponse;
 
@@ -194,6 +196,14 @@ enum {
     SEBKioskModeKillExplorerShell               = 2
 };
 typedef NSUInteger SEBKioskMode;
+
+
+enum {
+    storeDecryptedSEBSettingsResultSuccess      = 0,
+    storeDecryptedSEBSettingsResultCanceled     = 1,
+    storeDecryptedSEBSettingsResultWrongFormat  = 2
+};
+typedef NSUInteger storeDecryptedSEBSettingsResult;
 
 
 enum {

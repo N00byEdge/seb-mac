@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="10116" systemVersion="15E65" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="10117" systemVersion="15G31" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
         <deployment version="1080" identifier="macosx"/>
         <development version="5100" identifier="xcode"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="10116"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="10117"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="PrefsNetworkViewController">
             <connections>
                 <outlet property="URLFilterEnableContentFilterButton" destination="648" id="25v-NI-dvx"/>
                 <outlet property="URLFilterMessageControl" destination="wtP-tT-RxN" id="187-9Q-m8P"/>
+                <outlet property="advancedCertificatesArrayController" destination="KTY-Gn-rdN" id="SYf-TZ-dhb"/>
+                <outlet property="advancedCertificatesList" destination="zFX-aq-BQc" id="fZo-Qv-Ser"/>
+                <outlet property="advancedCertificatesSheet" destination="5GY-eF-5u2" id="rXw-aH-Ghb"/>
                 <outlet property="certificatesArrayController" destination="1875" id="1890"/>
                 <outlet property="chooseCA" destination="1814" id="dUt-us-FjD"/>
                 <outlet property="chooseCertificate" destination="1779" id="1905"/>
+                <outlet property="chooseEmbeddCertificateType" destination="An4-xf-7ZG" id="Pyv-oz-6eJ"/>
                 <outlet property="chooseIdentity" destination="UIS-5m-9TC" id="8zi-bS-k9r"/>
                 <outlet property="filterArrayController" destination="Hmk-IV-hfb" id="LSh-JT-gIV"/>
                 <outlet property="filterTableView" destination="1EV-b8-djc" id="eti-oq-l4o"/>
                 <outlet property="fragment" destination="3fo-3Z-d4k" id="rPa-BJ-IeU"/>
                 <outlet property="host" destination="VoK-Ej-Zql" id="NJ7-1R-OjY"/>
                 <outlet property="networkTabView" destination="239" id="HEf-ZD-yId"/>
+                <outlet property="overrideCommonName" destination="poG-uc-dNo" id="vep-74-83G"/>
+                <outlet property="overrideCommonNameLabel" destination="nDb-Fc-OTn" id="Vas-P0-xfK"/>
                 <outlet property="password" destination="oXf-ig-TZU" id="KPB-8U-bX3"/>
                 <outlet property="path" destination="IT5-aW-zsl" id="RDz-nA-Tim"/>
                 <outlet property="port" destination="kr2-YI-gaU" id="AbR-Pf-c9E"/>
@@ -69,7 +75,7 @@
                                             <constraint firstAttribute="width" constant="22" id="LXq-Xr-0eI"/>
                                             <constraint firstAttribute="height" constant="21" id="abk-IT-zqh"/>
                                         </constraints>
-                                        <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="NSAddTemplate" imagePosition="overlaps" alignment="center" scrollable="YES" lineBreakMode="clipping" borderStyle="border" inset="2" id="532">
+                                        <buttonCell key="cell" type="square" bezelStyle="shadowlessSquare" image="NSAddTemplate" imagePosition="only" alignment="center" scrollable="YES" lineBreakMode="clipping" borderStyle="border" inset="2" id="532">
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="system"/>
                                         </buttonCell>
@@ -150,7 +156,7 @@
                                                                 <binding destination="Hmk-IV-hfb" name="value" keyPath="arrangedObjects.expression" id="jRF-Ry-bNb"/>
                                                             </connections>
                                                         </tableColumn>
-                                                        <tableColumn width="66" minWidth="10" maxWidth="3.4028234663852886e+38" id="6U6-cT-k15">
+                                                        <tableColumn width="63.5" minWidth="10" maxWidth="3.4028234663852886e+38" id="6U6-cT-k15">
                                                             <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Action">
                                                                 <font key="font" metaFont="smallSystem"/>
                                                                 <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
@@ -851,20 +857,20 @@
                                             <rect key="frame" x="1" y="0.0" width="568" height="422"/>
                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                             <subviews>
-                                                <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" alternatingRowBackgroundColors="YES" columnReordering="NO" columnSelection="YES" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" autosaveName="" rowHeight="14" headerView="1834" id="1832">
+                                                <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" alternatingRowBackgroundColors="YES" columnReordering="NO" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" autosaveName="" rowHeight="14" headerView="1834" id="1832" userLabel="Certificates Table View">
                                                     <rect key="frame" x="0.0" y="0.0" width="568" height="399"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                     <size key="intercellSpacing" width="3" height="2"/>
                                                     <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                                     <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                                     <tableColumns>
-                                                        <tableColumn editable="NO" width="95.3671875" minWidth="40" maxWidth="1000" id="1836">
+                                                        <tableColumn editable="NO" width="125" minWidth="40" maxWidth="1000" id="1836">
                                                             <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Kind">
                                                                 <font key="font" metaFont="smallSystem"/>
                                                                 <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                                                 <color key="backgroundColor" white="0.33333298560000002" alpha="1" colorSpace="calibratedWhite"/>
                                                             </tableHeaderCell>
-                                                            <popUpButtonCell key="dataCell" type="bevel" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" enabled="NO" refusesFirstResponder="YES" state="on" borderStyle="bezel" imageScaling="proportionallyDown" inset="2" arrowPosition="noArrow" preferredEdge="maxY" autoenablesItems="NO" selectedItem="1893" id="1891">
+                                                            <popUpButtonCell key="dataCell" type="bevel" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" enabled="NO" state="on" borderStyle="bezel" imageScaling="proportionallyDown" inset="2" arrowPosition="noArrow" preferredEdge="maxY" autoenablesItems="NO" selectedItem="1893" id="1891">
                                                                 <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
                                                                 <font key="font" metaFont="smallSystem"/>
                                                                 <menu key="menu" autoenablesItems="NO" id="1892">
@@ -885,20 +891,20 @@
                                                                 </binding>
                                                             </connections>
                                                         </tableColumn>
-                                                        <tableColumn editable="NO" width="466.5" minWidth="40" maxWidth="1000" id="1837">
+                                                        <tableColumn width="437" minWidth="40" maxWidth="1000" id="1837">
                                                             <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Name">
                                                                 <font key="font" metaFont="smallSystem"/>
                                                                 <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                                                 <color key="backgroundColor" white="0.33333298560000002" alpha="1" colorSpace="calibratedWhite"/>
                                                             </tableHeaderCell>
-                                                            <textFieldCell key="dataCell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" alignment="left" id="1838">
+                                                            <textFieldCell key="dataCell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" alignment="left" id="1838">
                                                                 <font key="font" metaFont="smallSystem"/>
                                                                 <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                                             </textFieldCell>
                                                             <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                             <connections>
-                                                                <binding destination="1875" name="value" keyPath="arrangedObjects.name" id="1903"/>
+                                                                <binding destination="1875" name="value" keyPath="arrangedObjects.name" id="oWz-RF-HDL"/>
                                                             </connections>
                                                         </tableColumn>
                                                     </tableColumns>
@@ -979,6 +985,9 @@
                                             <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                             <font key="font" metaFont="system"/>
                                         </buttonCell>
+                                        <connections>
+                                            <action selector="showAdvancedCertificateSheet:" target="-2" id="ndd-ld-R45"/>
+                                        </connections>
                                     </button>
                                 </subviews>
                                 <constraints>
@@ -1968,9 +1977,9 @@
                 </binding>
             </connections>
         </arrayController>
-        <arrayController id="1875" userLabel="Certificates Array Controller">
+        <arrayController automaticallyPreparesContent="YES" preservesSelection="NO" selectsInsertedObjects="NO" id="1875" userLabel="Certificates Array Controller" customClass="SEBCertificatesArrayController">
             <connections>
-                <binding destination="110" name="contentArray" keyPath="values.org_safeexambrowser_SEB_embeddedCertificates" id="1887">
+                <binding destination="110" name="contentArray" keyPath="values.org_safeexambrowser_SEB_embeddedCertificates" id="JfN-zO-2ya">
                     <dictionary key="options">
                         <bool key="NSHandlesContentAsCompoundValue" value="YES"/>
                     </dictionary>
@@ -2011,6 +2020,219 @@
                 </menuItem>
             </items>
         </menu>
+        <window title="Certificates: Advanced" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" frameAutosaveName="" animationBehavior="default" id="5GY-eF-5u2" userLabel="Advanced Certificates">
+            <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
+            <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
+            <rect key="contentRect" x="163" y="199" width="610" height="573"/>
+            <rect key="screenRect" x="0.0" y="0.0" width="2560" height="1577"/>
+            <view key="contentView" id="Oww-cu-u71">
+                <rect key="frame" x="0.0" y="0.0" width="610" height="573"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <scrollView autohidesScrollers="YES" horizontalLineScroll="16" horizontalPageScroll="10" verticalLineScroll="16" verticalPageScroll="10" usesPredominantAxisScrolling="NO" translatesAutoresizingMaskIntoConstraints="NO" id="7Li-5Z-iho">
+                        <rect key="frame" x="20" y="105" width="570" height="423"/>
+                        <clipView key="contentView" id="ilD-CP-EQ7">
+                            <rect key="frame" x="1" y="0.0" width="568" height="422"/>
+                            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                            <subviews>
+                                <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="firstColumnOnly" alternatingRowBackgroundColors="YES" columnReordering="NO" columnSelection="YES" columnResizing="NO" multipleSelection="NO" autosaveColumns="NO" rowHeight="14" headerView="l7P-hn-H1h" id="zFX-aq-BQc">
+                                    <rect key="frame" x="0.0" y="0.0" width="568" height="399"/>
+                                    <autoresizingMask key="autoresizingMask"/>
+                                    <size key="intercellSpacing" width="3" height="2"/>
+                                    <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
+                                    <tableColumns>
+                                        <tableColumn editable="NO" width="440" minWidth="100" maxWidth="1000" id="WtC-9s-fhR">
+                                            <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Name">
+                                                <font key="font" metaFont="smallSystem"/>
+                                                <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" white="0.33333298560000002" alpha="1" colorSpace="calibratedWhite"/>
+                                            </tableHeaderCell>
+                                            <textFieldCell key="dataCell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" alignment="left" id="K2V-PZ-awG">
+                                                <font key="font" metaFont="smallSystem"/>
+                                                <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                            </textFieldCell>
+                                            <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                            <connections>
+                                                <binding destination="KTY-Gn-rdN" name="fontBold" keyPath="arrangedObjects.isExpired" id="Lid-gS-zJS">
+                                                    <dictionary key="options">
+                                                        <string key="NSValueTransformerName">NSNegateBoolean</string>
+                                                    </dictionary>
+                                                </binding>
+                                                <binding destination="KTY-Gn-rdN" name="value" keyPath="arrangedObjects.name" id="aJf-9w-qNE"/>
+                                            </connections>
+                                        </tableColumn>
+                                        <tableColumn identifier="" width="122" minWidth="100" maxWidth="3.4028234663852886e+38" id="3Ez-5z-ngx" userLabel="Expires">
+                                            <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="Expires">
+                                                <font key="font" metaFont="smallSystem"/>
+                                                <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
+                                            </tableHeaderCell>
+                                            <textFieldCell key="dataCell" controlSize="small" lineBreakMode="truncatingTail" selectable="YES" editable="YES" alignment="left" title="Text Cell" id="JDn-xc-JVJ">
+                                                <dateFormatter key="formatter" dateStyle="medium" timeStyle="short" id="r1z-sH-6Df"/>
+                                                <font key="font" metaFont="smallSystem"/>
+                                                <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                                <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                            </textFieldCell>
+                                            <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
+                                            <connections>
+                                                <binding destination="KTY-Gn-rdN" name="textColor" keyPath="arrangedObjects.isExpired" id="TYU-b2-2g5">
+                                                    <dictionary key="options">
+                                                        <string key="NSValueTransformerName">NSColorValueTransformer</string>
+                                                    </dictionary>
+                                                </binding>
+                                                <binding destination="KTY-Gn-rdN" name="value" keyPath="arrangedObjects.valid_to" id="axr-i6-uOf">
+                                                    <dictionary key="options">
+                                                        <bool key="NSConditionallySetsEditable" value="NO"/>
+                                                    </dictionary>
+                                                </binding>
+                                            </connections>
+                                        </tableColumn>
+                                    </tableColumns>
+                                    <connections>
+                                        <action selector="advancedCertificateSelected:" target="-2" id="1y2-v0-2uX"/>
+                                        <outlet property="dataSource" destination="-2" id="Nlc-yb-Qtc"/>
+                                        <outlet property="delegate" destination="-2" id="t9B-X7-ak1"/>
+                                    </connections>
+                                </tableView>
+                            </subviews>
+                            <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
+                        </clipView>
+                        <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="YES" id="aI1-tn-9bT">
+                            <rect key="frame" x="-7" y="8" width="0.0" height="15"/>
+                            <autoresizingMask key="autoresizingMask"/>
+                        </scroller>
+                        <scroller key="verticalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="NO" id="gnj-7U-SIa">
+                            <rect key="frame" x="-14" y="15" width="15" height="0.0"/>
+                            <autoresizingMask key="autoresizingMask"/>
+                        </scroller>
+                        <tableHeaderView key="headerView" id="l7P-hn-H1h">
+                            <rect key="frame" x="0.0" y="0.0" width="568" height="23"/>
+                            <autoresizingMask key="autoresizingMask"/>
+                        </tableHeaderView>
+                    </scrollView>
+                    <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="qiQ-yv-KyL">
+                        <rect key="frame" x="18" y="536" width="189" height="17"/>
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" title="Choose certificate to embedd:" id="VV0-Zp-Taw">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                    </textField>
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="Ac7-hJ-JcF">
+                        <rect key="frame" x="506" y="13" width="90" height="32"/>
+                        <buttonCell key="cell" type="push" title="Embedd" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="lRh-cS-3k7">
+                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            <font key="font" metaFont="system"/>
+                        </buttonCell>
+                        <connections>
+                            <action selector="embeddAdvancedCertificate:" target="-2" id="tTc-Da-Xue"/>
+                        </connections>
+                    </button>
+                    <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="8mC-CJ-dvp">
+                        <rect key="frame" x="424" y="13" width="82" height="32"/>
+                        <buttonCell key="cell" type="push" title="Cancel" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="DPz-Hy-kg6">
+                            <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            <font key="font" metaFont="system"/>
+                            <string key="keyEquivalent" base64-UTF8="YES">
+Gw
+</string>
+                        </buttonCell>
+                        <connections>
+                            <action selector="cancelAdvancedCertificateSheet:" target="-2" id="QXD-An-Ere"/>
+                        </connections>
+                    </button>
+                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="NW2-fd-qaY">
+                        <rect key="frame" x="18" y="80" width="72" height="17"/>
+                        <textFieldCell key="cell" sendsActionOnEndEditing="YES" alignment="left" title="Embedd as" id="eXh-u4-x04">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                    </textField>
+                    <popUpButton toolTip="TLS/SSL certificates from the default keychain. This allows to distribute self-signed certificates to exam clients" horizontalHuggingPriority="249" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="An4-xf-7ZG">
+                        <rect key="frame" x="99" y="76" width="494" height="22"/>
+                        <popUpButtonCell key="cell" type="push" bezelStyle="rounded" alignment="left" controlSize="small" lineBreakMode="truncatingTail" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" preferredEdge="maxY" altersStateOfSelectedItem="NO" selectedItem="vRH-jI-3R1" id="hMi-Ei-zh1">
+                            <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
+                            <font key="font" metaFont="smallSystem"/>
+                            <menu key="menu" id="r8c-3z-CaX">
+                                <items>
+                                    <menuItem id="vRH-jI-3R1"/>
+                                </items>
+                            </menu>
+                        </popUpButtonCell>
+                        <connections>
+                            <action selector="embeddCertificateTypeChanged:" target="-2" id="GZ8-DI-35Q"/>
+                            <binding destination="191" name="contentValues" keyPath="org_safeexambrowser_SEB_SSLCertificateTypes" id="lS5-3c-ZZm"/>
+                        </connections>
+                    </popUpButton>
+                    <textField horizontalHuggingPriority="750" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="poG-uc-dNo">
+                        <rect key="frame" x="177" y="49" width="413" height="22"/>
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="AxE-Qn-sDl">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="textColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                        <connections>
+                            <binding destination="-2" name="hidden" keyPath="self.addingDebugCertificate" id="eC2-0M-Tjs">
+                                <dictionary key="options">
+                                    <string key="NSValueTransformerName">NSNegateBoolean</string>
+                                </dictionary>
+                            </binding>
+                        </connections>
+                    </textField>
+                    <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="1000" setsMaxLayoutWidthAtFirstLayout="YES" translatesAutoresizingMaskIntoConstraints="NO" id="nDb-Fc-OTn">
+                        <rect key="frame" x="18" y="52" width="153" height="17"/>
+                        <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" sendsActionOnEndEditing="YES" alignment="left" title="Override common name:" usesSingleLineMode="YES" id="Apy-z9-F3c">
+                            <font key="font" metaFont="system"/>
+                            <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                            <color key="backgroundColor" name="controlColor" catalog="System" colorSpace="catalog"/>
+                        </textFieldCell>
+                        <connections>
+                            <binding destination="-2" name="hidden" keyPath="self.addingDebugCertificate" id="p3Z-eS-BDP">
+                                <dictionary key="options">
+                                    <string key="NSValueTransformerName">NSNegateBoolean</string>
+                                </dictionary>
+                            </binding>
+                        </connections>
+                    </textField>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="7Li-5Z-iho" firstAttribute="top" secondItem="qiQ-yv-KyL" secondAttribute="bottom" constant="8" id="7NX-8G-TMb"/>
+                    <constraint firstItem="An4-xf-7ZG" firstAttribute="baseline" secondItem="NW2-fd-qaY" secondAttribute="baseline" id="Djf-xV-BtQ"/>
+                    <constraint firstItem="7Li-5Z-iho" firstAttribute="leading" secondItem="Oww-cu-u71" secondAttribute="leading" constant="20" id="FQN-Nx-dWr"/>
+                    <constraint firstAttribute="trailing" secondItem="poG-uc-dNo" secondAttribute="trailing" constant="20" id="QxZ-oL-0aB"/>
+                    <constraint firstAttribute="bottom" secondItem="Ac7-hJ-JcF" secondAttribute="bottom" constant="20" id="SOe-LB-IYp"/>
+                    <constraint firstItem="poG-uc-dNo" firstAttribute="top" secondItem="An4-xf-7ZG" secondAttribute="bottom" constant="8" id="TvL-cd-Bh9"/>
+                    <constraint firstItem="nDb-Fc-OTn" firstAttribute="leading" secondItem="Oww-cu-u71" secondAttribute="leading" constant="20" id="UeJ-Qy-OuB"/>
+                    <constraint firstItem="Ac7-hJ-JcF" firstAttribute="baseline" secondItem="8mC-CJ-dvp" secondAttribute="baseline" id="WDQ-m1-Mwv"/>
+                    <constraint firstItem="Ac7-hJ-JcF" firstAttribute="leading" secondItem="8mC-CJ-dvp" secondAttribute="trailing" constant="12" id="WPt-g8-CCs"/>
+                    <constraint firstItem="NW2-fd-qaY" firstAttribute="leading" secondItem="Oww-cu-u71" secondAttribute="leading" constant="20" id="ZkT-7D-jDO"/>
+                    <constraint firstAttribute="trailing" secondItem="Ac7-hJ-JcF" secondAttribute="trailing" constant="20" id="bVo-Cz-OLL"/>
+                    <constraint firstItem="poG-uc-dNo" firstAttribute="leading" secondItem="nDb-Fc-OTn" secondAttribute="trailing" constant="8" id="c1M-wG-duY"/>
+                    <constraint firstItem="qiQ-yv-KyL" firstAttribute="top" secondItem="Oww-cu-u71" secondAttribute="top" constant="20" id="dKe-pf-LXl"/>
+                    <constraint firstAttribute="trailing" secondItem="7Li-5Z-iho" secondAttribute="trailing" constant="20" id="eoc-Av-4p0"/>
+                    <constraint firstItem="poG-uc-dNo" firstAttribute="baseline" secondItem="nDb-Fc-OTn" secondAttribute="baseline" id="fW8-U4-HAG"/>
+                    <constraint firstItem="An4-xf-7ZG" firstAttribute="leading" secondItem="NW2-fd-qaY" secondAttribute="trailing" constant="14" id="l32-Fr-s0D"/>
+                    <constraint firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="qiQ-yv-KyL" secondAttribute="trailing" constant="20" id="r5x-tX-0Ij"/>
+                    <constraint firstItem="Ac7-hJ-JcF" firstAttribute="top" secondItem="poG-uc-dNo" secondAttribute="bottom" constant="8" id="t8u-3N-Zlc"/>
+                    <constraint firstItem="An4-xf-7ZG" firstAttribute="top" secondItem="7Li-5Z-iho" secondAttribute="bottom" constant="8" id="w7Y-FQ-8Wd"/>
+                    <constraint firstItem="qiQ-yv-KyL" firstAttribute="leading" secondItem="Oww-cu-u71" secondAttribute="leading" constant="20" id="xnU-Gv-Ta2"/>
+                    <constraint firstAttribute="trailing" secondItem="An4-xf-7ZG" secondAttribute="trailing" constant="20" id="zkh-Dy-Rhf"/>
+                </constraints>
+            </view>
+            <point key="canvasLocation" x="363" y="1181.5"/>
+        </window>
+        <arrayController id="KTY-Gn-rdN" userLabel="All Certificates Array Controller">
+            <connections>
+                <binding destination="-2" name="contentArray" keyPath="certificates" id="JDj-la-sXt">
+                    <dictionary key="options">
+                        <bool key="NSHandlesContentAsCompoundValue" value="YES"/>
+                    </dictionary>
+                </binding>
+            </connections>
+        </arrayController>
     </objects>
     <resources>
         <image name="NSAddTemplate" width="11" height="11"/>

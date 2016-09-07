@@ -35,12 +35,13 @@
 
 #import "SEBKeychainManager.h"
 #import "RNCryptor.h"
+#import "SEBCryptor.h"
 #include "x509_crt.h"
 
 @implementation SEBKeychainManager
 
 // We ignore "deprecated" warnings for CSSM methods, since Apple doesn't provide any replacement
-// for asymetric public key cryptography as for OS X 10.10
+// for asymetric public key cryptography as of OS X 10.10
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
@@ -49,7 +50,8 @@
     OSStatus status;
     status = SecKeychainCopyDefault(&keychain);
     if (status != noErr) {
-        DDLogError(@"Error in %s: SecKeychainCopyDefault returned %@. Cannot access keychain, no identities can be read.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+        DDLogError(@"Error in %s: SecKeychainCopyDefault returned %@. Cannot access keychain, no identities can be read.",
+                   __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
         if (keychain) CFRelease(keychain);
         return nil;
     }
@@ -66,7 +68,8 @@
     status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&items);
     if (keychain) CFRelease(keychain);
     if (status != errSecSuccess) {
-        DDLogError(@"Error in %s: SecItemCopyMatching(kSecClassIdentity) returned %@. Can't search keychain, no identities can be read.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+        DDLogError(@"Error in %s: SecItemCopyMatching(kSecClassIdentity) returned %@. Can't search keychain, no identities can be read.",
+                   __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
         if (items) CFRelease(items);
         return nil;
     }
@@ -139,7 +142,9 @@
                                             [identitiesNames addObject:identityName];
                                         }
                                         
-                                        DDLogDebug(@"Common name: %@ %@", (__bridge NSString *)commonName ? (__bridge NSString *)commonName : @"" , CFArrayGetCount(emailAddressesRef) ? (__bridge NSString *)CFArrayGetValueAtIndex(emailAddressesRef, 0) : @"");
+                                        DDLogDebug(@"Common name: %@ %@",
+                                                   (__bridge NSString *)commonName ? (__bridge NSString *)commonName : @"" ,
+                                                   CFArrayGetCount(emailAddressesRef) ? (__bridge NSString *)CFArrayGetValueAtIndex(emailAddressesRef, 0) : @"");
                                         DDLogDebug(@"Public key can be used for encryption, private key can be used for decryption");
                                         if (emailAddressesRef) CFRelease(emailAddressesRef);
                                         if (commonName) CFRelease(commonName);
@@ -150,34 +155,41 @@
                                         continue;
                                         
                                     } else {
-                                        DDLogError(@"Error in %s: SecCertificateCopyEmailAddresses returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                                        DDLogError(@"Error in %s: SecCertificateCopyEmailAddresses returned %@. This identity will be skipped.",
+                                                   __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
                                     }
                                     
                                     if (commonName) CFRelease(commonName);
                                 } else {
-                                    DDLogError(@"Error in %s: SecCertificateCopyCommonName returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                                    DDLogError(@"Error in %s: SecCertificateCopyCommonName returned %@. This identity will be skipped.",
+                                               __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
                                 }
                             }
                         } else {
-                            DDLogError(@"Error in %s: SecKeyGetCSSMKey(privateKey) returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                            DDLogError(@"Error in %s: SecKeyGetCSSMKey(privateKey) returned %@. This identity will be skipped.",
+                                       __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
                         }
                     } else {
-                        DDLogError(@"Error in %s: SecKeyGetCSSMKey(publicKey) returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                        DDLogError(@"Error in %s: SecKeyGetCSSMKey(publicKey) returned %@. This identity will be skipped.",
+                                   __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
                     }
                     
                     if (publicKeyRef) CFRelease(publicKeyRef);
                 } else {
-                    DDLogError(@"Error in %s: SecCertificateCopyPublicKey returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                    DDLogError(@"Error in %s: SecCertificateCopyPublicKey returned %@. This identity will be skipped.",
+                               __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
                 }
                 
                 if (privateKeyRef) CFRelease(privateKeyRef);
             } else {
-                DDLogError(@"Error in %s: SecIdentityCopyPrivateKey returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                DDLogError(@"Error in %s: SecIdentityCopyPrivateKey returned %@. This identity will be skipped.",
+                           __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
             }
             
             if (certificateRef) CFRelease(certificateRef);
         } else {
-            DDLogError(@"Error in %s: SecIdentityCopyCertificate returned %@. This identity will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+            DDLogError(@"Error in %s: SecIdentityCopyCertificate returned %@. This identity will be skipped.",
+                       __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
         }
         
         // Currently iterated identity cannot be used: remove it from the list
@@ -195,168 +207,225 @@
 }
 
 
-- (NSArray*)getTLSCertificatesAndCAs:(NSArray **)CACertificates {
-    SecKeychainRef keychain;
+- (NSArray*)getCertificatesOfType:(certificateTypes)certificateType {
     OSStatus status;
-    status = SecKeychainCopyDefault(&keychain);
-    if (status != noErr) {
-        DDLogError(@"Error in %s: SecKeychainCopyDefault returned %@. Cannot access keychain, no certificates can be read.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+    if (!_allCertificates) {
+        SecKeychainRef keychain;
+        status = SecKeychainCopyDefault(&keychain);
+        if (status != noErr) {
+            DDLogError(@"Error in %s: SecKeychainCopyDefault returned %@. Cannot access keychain, no certificates can be read.",
+                       __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+            if (keychain) CFRelease(keychain);
+            return nil;
+        }
+        
+        NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
+                               (__bridge id)kSecClassCertificate, (__bridge id)kSecClass,
+                               [NSArray arrayWithObject:(__bridge id)keychain], (__bridge id)kSecMatchSearchList,
+                               (__bridge id)kCFBooleanTrue, (__bridge id)kSecReturnRef,
+                               (__bridge id)kSecMatchLimitAll, (__bridge id)kSecMatchLimit,
+                               nil];
+        CFTypeRef items = NULL;
+        
+        status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&items);
         if (keychain) CFRelease(keychain);
-        return nil;
+        if (status != errSecSuccess) {
+            DDLogError(@"Error in %s: SecItemCopyMatching(kSecClassIdentity) returned %@. Can't search keychain, no certificates can be read.",
+                       __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+            if (items) CFRelease(items);
+            return nil;
+        }
+        
+        _allCertificates = (__bridge_transfer NSArray*)(items);
     }
-    
-    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
-                           (__bridge id)kSecClassCertificate, (__bridge id)kSecClass,
-                           [NSArray arrayWithObject:(__bridge id)keychain], (__bridge id)kSecMatchSearchList,
-                           (__bridge id)kCFBooleanTrue, (__bridge id)kSecReturnRef,
-                           (__bridge id)kSecMatchLimitAll, (__bridge id)kSecMatchLimit,
-                           nil];
-    CFTypeRef items = NULL;
-    
-    status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&items);
-    if (keychain) CFRelease(keychain);
-    if (status != errSecSuccess) {
-        DDLogError(@"Error in %s: SecItemCopyMatching(kSecClassIdentity) returned %@. Can't search keychain, no certificates can be read.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
-        if (items) CFRelease(items);
-        return nil;
-    }
-    
-    NSMutableArray *certificateRefs = [NSMutableArray arrayWithArray:(__bridge_transfer NSArray*)(items)];
-    NSMutableArray *certificates = [NSMutableArray arrayWithCapacity:[certificateRefs count]];
-    
-    // dmcd - make a copy of this array for post-processing (for finding CA certs)
-    NSMutableArray *listCertificates = [NSMutableArray arrayWithArray:certificateRefs];
+    NSMutableArray *certificates = [NSMutableArray arrayWithCapacity:1];
     
     CFStringRef commonName = NULL;
     CFArrayRef emailAddressesRef = NULL;
-    int i, count = [certificateRefs count];
+    int i, count = [_allCertificates count];
     for (i=0; i<count; i++) {
-        SecCertificateRef certificateRef = (__bridge SecCertificateRef)[certificateRefs objectAtIndex:i];
+        SecCertificateRef certificateRef = (__bridge SecCertificateRef)[_allCertificates objectAtIndex:i];
         if ((status = SecCertificateCopyCommonName(certificateRef, &commonName)) == noErr) {
             if ((status = SecCertificateCopyEmailAddresses(certificateRef, &emailAddressesRef)) == noErr) {
                 CFErrorRef error = NULL;
-                NSDictionary *values = (NSDictionary *)CFBridgingRelease(SecCertificateCopyValues (certificateRef, (__bridge CFArrayRef)[NSArray arrayWithObject:(__bridge id)(kSecOIDExtendedKeyUsage)], &error));
-                // Keep only certificates which have an extended key usage server authentification
-                if ([values count]) {
-                    NSDictionary *value = [values objectForKey:(__bridge id)(kSecOIDExtendedKeyUsage)];
-                    NSArray *extendedKeyUsages = [value objectForKey:(__bridge id)(kSecPropertyKeyValue)];
-                    if ([extendedKeyUsages containsObject:[NSData dataWithBytes:keyUsageServerAuthentication length:8]]) {
-                        
-                        NSString *certificateName = [NSString stringWithFormat:@"%@",
-                                           (__bridge NSString *)commonName ?
-                                           //There is a commonName: just take that as a name
-                                           [NSString stringWithFormat:@"%@ ",(__bridge NSString *)commonName] :
-                                           //there is no common name: take the e-mail address (if it exists)
-                                           CFArrayGetCount(emailAddressesRef) ?
-                                           (__bridge NSString *)CFArrayGetValueAtIndex(emailAddressesRef, 0) :
-                                           @""];
-                        if ([certificateName isEqualToString:@""] || [certificates containsObject:certificateName]) {
-                            //get public key hash from selected identity's certificate
-                            NSData* publicKeyHash = [self getPublicKeyHashFromCertificate:certificateRef];
-                            if (!publicKeyHash) {
-                                DDLogError(@"Error in %s: Could not get public key hash form certificate. Generated a random hash.", __FUNCTION__);
-                                // If the hash couldn't be determinded (what actually shouldn't happen): Create random data instead
-                                publicKeyHash = [RNCryptor randomDataOfLength:20];
-                            }
-                            unsigned char hashedChars[20];
-                            [publicKeyHash getBytes:hashedChars length:20];
-                            NSMutableString* hashedString = [NSMutableString new];
-                            for (int i = 0 ; i < 20 ; ++i) {
-                                [hashedString appendFormat: @"%02x", hashedChars[i]];
-                            }
-                            certificateName = [NSString stringWithFormat:@"%@ %@",certificateName, hashedString];
-                        } else {
-                            certificateName = [NSString stringWithFormat:@"%@", certificateName];
+                
+                // Get signature, valid from, valid to and extended key usage
+                NSDictionary *certSpecifiers = (NSDictionary *)CFBridgingRelease(SecCertificateCopyValues
+                                                                                 (certificateRef,
+                                                                                  (__bridge CFArrayRef)[NSArray arrayWithObjects:(__bridge id)(kSecOIDX509V1ValidityNotAfter),
+                                                                                                        (__bridge id)(kSecOIDX509V1ValidityNotBefore),
+                                                                                                        (__bridge id)(kSecOIDExtendedKeyUsage),
+                                                                                                        nil],
+                                                                                  &error));
+                
+                // Check validity (from - to) of certfificate
+                NSDate *validFrom;
+                NSDate *validTo;
+                BOOL *isExpired = true;
+                if ([certSpecifiers count]) {
+                    NSDictionary *validFromDict = [certSpecifiers objectForKey:(__bridge id)(kSecOIDX509V1ValidityNotBefore)];
+                    if (validFromDict.count) {
+                        validFrom = [NSDate dateWithTimeIntervalSinceReferenceDate:(double)[[validFromDict objectForKey:@"value"] doubleValue]];
+                    }
+                    NSDictionary *validToDict = [certSpecifiers objectForKey:(__bridge id)(kSecOIDX509V1ValidityNotAfter)];
+                    if (validToDict.count) {
+                        validTo = [NSDate dateWithTimeIntervalSinceReferenceDate:(double)[[validToDict objectForKey:@"value"] doubleValue]];
+                    }
+                    
+                    NSDate *now = [NSDate date];
+                    if ([validFrom compare:now] == NSOrderedAscending) {
+                        if ([validTo compare:now] == NSOrderedDescending) {
+                            isExpired = false;
                         }
-                        [certificates addObject:@{
-                                                  @"ref" : (__bridge_transfer id)certificateRef,
-                                                  @"name" : certificateName,
-                                                  }];
-                        DDLogDebug(@"Common name: %@ %@", (__bridge NSString *)commonName ? (__bridge NSString *)commonName : @"" , CFArrayGetCount(emailAddressesRef) ? (__bridge NSString *)CFArrayGetValueAtIndex(emailAddressesRef, 0) : @"");
-                        
-                        if (commonName) CFRelease(commonName);
-                        if (emailAddressesRef) CFRelease(emailAddressesRef);
-                        
-                        continue;
                     }
-                } else {
-                    NSString *errorDescription = @"";
-                    if (error != NULL) {
-                        errorDescription = [NSString stringWithFormat:@"SecCertificateCopyValues error: %@. ", CFBridgingRelease(CFErrorCopyDescription(error))];
-                    }
-                    DDLogDebug(@"Common name: %@. No extended key usage server authentification has been found. %@ This certificate will be skipped.", (__bridge NSString *)commonName ? (__bridge NSString *)commonName : @"" , errorDescription);
                 }
+                
+                // Get certificate name
+                NSString *certificateName = [NSString stringWithFormat:@"%@",
+                                             (__bridge NSString *)commonName ?
+                                             // There is a commonName: just take that as a name
+                                             [NSString stringWithFormat:@"%@",(__bridge NSString *)commonName] :
+                                             // There is no common name: take the e-mail address (if it exists)
+                                             CFArrayGetCount(emailAddressesRef) ?
+                                             (__bridge NSString *)CFArrayGetValueAtIndex(emailAddressesRef, 0) :
+                                             @""];
+
+                // Get certificate signature hash (fingerprint)
+                NSData *signatureData = CFBridgingRelease(SecCertificateCopyData(certificateRef));
+                if (!signatureData) {
+                    // If the hash couldn't be determinded (what actually shouldn't happen): Create random data instead
+                    signatureData = [RNCryptor randomDataOfLength:128];
+                }
+                NSString *signatureHash = [[self generateSHA1HashStringFromData:signatureData] uppercaseString];
+
+                // If the certificate didn't had neither common name or e-mail: Use the fingerprint in brackets as name
+                if ([certificateName isEqualToString:@""]) {
+                    certificateName = [NSString stringWithFormat:@"(%@)", signatureHash];
+                }
+                
+                // SSL and CA certs need to have a unique certificate name
+                if (certificateType != certificateTypeSSLDebug) {
+                    // Check for duplicate name
+                    NSPredicate * predicate = [NSPredicate predicateWithFormat:@" name ==[cd] %@", certificateName];
+                    NSArray * matches = [certificates filteredArrayUsingPredicate:predicate];
+                    // If the name isn't unique, append the fingerprint in brackets
+                    if (matches.count > 0) {
+                        certificateName = [NSString stringWithFormat:@"%@ (%@)", certificateName, signatureHash];
+                    }
+                }
+                
+                // Get certificate info
+                NSString *certificateInfo = @"";
+                mbedtls_x509_crt cert;
+                mbedtls_x509_crt_init(&cert);
+                
+                // Get DER data
+                NSData *data = CFBridgingRelease(SecCertificateCopyData(certificateRef));
+                
+                if (data)
+                {
+                    if (mbedtls_x509_crt_parse_der(&cert, [data bytes], [data length]) == 0)
+                    {
+                        char infoBuf[2048];
+                        *infoBuf = '\0';
+                        mbedtls_x509_crt_info(infoBuf, sizeof(infoBuf) - 1, "   ", &cert);
+                        certificateInfo = [NSString stringWithFormat:@"%s", infoBuf];
+                        DDLogDebug(@"\n%s\n", infoBuf);
+                    }
+                }
+                
+                // Filter certificates according to the requested certificate type
+                switch (certificateType) {
+                    case certificateTypeSSL:
+                    {
+                        if (!isExpired) {
+                            // Keep only certificates which have an extended key usage server authentification
+                            if ([certSpecifiers count]) {
+                                NSDictionary *value = [certSpecifiers objectForKey:(__bridge id)(kSecOIDExtendedKeyUsage)];
+                                NSArray *extendedKeyUsages = [value objectForKey:(__bridge id)(kSecPropertyKeyValue)];
+                                if ([extendedKeyUsages containsObject:[NSData dataWithBytes:keyUsageServerAuthentication length:8]]) {
+                                    
+                                    [certificates addObject:@{
+                                                              @"ref" : (__bridge id)certificateRef,
+                                                              @"name" : certificateName
+                                                              }];
+                                    DDLogDebug(@"Adding SSL certificate with common name: %@", certificateName);
+                                    
+                                    break;
+                                }
+                            } else {
+                                NSString *errorDescription = @"";
+                                if (error != NULL) {
+                                    errorDescription = [NSString stringWithFormat:@"SecCertificateCopyValues error: %@. ", CFBridgingRelease(CFErrorCopyDescription(error))];
+                                }
+                                DDLogDebug(@"Common name: %@. No extended key usage server authentification has been found. %@ This certificate will be skipped.",
+                                           certificateName , errorDescription);
+                            }
+                        }
+                        break;
+                    }
+                        
+                        
+                    case certificateTypeCA:
+                    {
+                        if (!isExpired) {
+                            if (cert.ext_types & MBEDTLS_X509_EXT_BASIC_CONSTRAINTS)
+                            {
+                                if (cert.ca_istrue)
+                                {
+                                    
+                                    [certificates addObject:@{
+                                                              @"ref" : (__bridge id)certificateRef,
+                                                              @"name" : certificateName
+                                                              }];
+                                    DDLogDebug(@"\nAdding CA certificate:\n%@\n", certificateInfo);
+                                    
+                                    //                                            break;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                        
+                    case certificateTypeSSLDebug:
+                    {
+                        // Add all certificates, without testing them for properties
+                        // which sometimes just are not set on some slacker certs
+                        [certificates addObject:@{
+                                                  @"ref" : (__bridge id)certificateRef,
+                                                  @"name" : certificateName,
+                                                  @"valid_from" : validFrom,
+                                                  @"valid_to" : validTo,
+                                                  @"isExpired" : [NSNumber numberWithBool:isExpired],
+                                                  @"info" : certificateInfo
+                                                  }];
+                        DDLogDebug(@"Adding debug certificate with common name: %@", certificateName);
+                        
+                        break;
+                    }
+                        
+                    default:
+                        break;
+                }
+                
+                mbedtls_x509_crt_free(&cert);
+                
                 if (emailAddressesRef) CFRelease(emailAddressesRef);
             } else {
-                DDLogError(@"Error in %s: SecCertificateCopyEmailAddresses returned %@. This certificate will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+                DDLogError(@"Error in %s: SecCertificateCopyEmailAddresses returned %@. This certificate will be skipped.",
+                           __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
             }
             if (commonName) CFRelease(commonName);
         } else {
-            DDLogError(@"Error in %s: SecCertificateCopyCommonName returned %@. This certificate will be skipped.", __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
+            DDLogError(@"Error in %s: SecCertificateCopyCommonName returned %@. This certificate will be skipped.",
+                       __FUNCTION__, [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:NULL]);
         }
-        // Currently iterated certificate cannot be used: remove it from the list
-        [certificateRefs removeObjectAtIndex:i];
-        i--;
-        count--;
     }
     
-//    // dmcd - post-processing to add CA certs
-//    for (NSInteger i = 0; i < [listCertificates count]; i++)
-//    {
-//        mbedtls_x509_crt cert;
-//        mbedtls_x509_crt_init(&cert);
-//        
-//        BOOL remove = YES;
-//        
-//        // Get DER data
-//        SecCertificateRef certificateRef = (__bridge SecCertificateRef)[listCertificates objectAtIndex:i];
-//        NSData *data = CFBridgingRelease(SecCertificateCopyData(certificateRef));
-//        
-//        if (data)
-//        {
-//            if (mbedtls_x509_crt_parse_der(&cert, [data bytes], [data length]) == 0)
-//            {
-//#if DEBUG
-//                char infoBuf[2048];
-//                *infoBuf = '\0';
-//                mbedtls_x509_crt_info(infoBuf, sizeof(infoBuf) - 1, "   ", &cert);
-//                DDLogDebug(@"\n%s\n", infoBuf);
-//#endif
-//                if (cert.ext_types & MBEDTLS_X509_EXT_BASIC_CONSTRAINTS)
-//                {
-//                    if (cert.ca_istrue)
-//                    {
-//                        CFStringRef commonName = NULL;
-//                        
-//                        if (SecCertificateCopyCommonName(certificateRef, &commonName) == noErr)
-//                        {
-//                            [certificates addObject:[NSString stringWithFormat:@"%@", commonName]];
-//                            remove = NO;
-//                            continue;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        
-//        if (remove)
-//        {
-//            [listCertificates removeObjectAtIndex:i--];
-//        }
-//        
-//        mbedtls_x509_crt_free(&cert);
-//    }
-//    
-//    [certificateRefs addObjectsFromArray:listCertificates];
-    NSSortDescriptor *sortByName = [NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES];
+    NSSortDescriptor *sortByName = [NSSortDescriptor sortDescriptorWithKey:@"name" ascending:YES selector:@selector(localizedCaseInsensitiveCompare:)];
     NSArray *sortDescriptors = [NSArray arrayWithObject:sortByName];
     NSArray *sortedCertificates = [[NSArray arrayWithArray:certificates] sortedArrayUsingDescriptors:sortDescriptors];
-    
-    // return array of certificate names
-    if (CACertificates) {
-        *CACertificates = [NSArray arrayWithArray:certificates];
-    }
-    
+        
     return sortedCertificates; // items contains all applicable SecIdentityRefs in keychain
 }
 
@@ -858,6 +927,19 @@
 }
 
 
+- (NSString *) generateSHA1HashStringFromData:(NSData *)inputData {
+    unsigned char hashedChars[CC_SHA1_DIGEST_LENGTH];
+    CC_SHA1(inputData.bytes,
+              inputData.length,
+              hashedChars);
+    NSMutableString* hashedString = [[NSMutableString alloc] init];
+    for (int i = 0 ; i < CC_SHA1_DIGEST_LENGTH ; ++i) {
+        [hashedString appendFormat: @"%02x", hashedChars[i]];
+    }
+    return hashedString;
+}
+
+
 // Add a generic key to the keychain
 - (BOOL) storeKey:(NSData *)keyData
 {
@@ -947,7 +1029,13 @@
         DDLogError(@"SecItemCopyMatching failed with error: %@", outError);
         return nil;
     }
-    return (__bridge_transfer NSData *)keyData;
+    NSData *keyNSData = (__bridge_transfer NSData *)keyData;
+    // Check if we really got data back, as this method sometimes returns success but no proper data(!)
+    if (!keyNSData || ![[keyNSData superclass] isKindOfClass:[NSData superclass]]) {
+        DDLogError(@"Key with ID could not be retrieved");
+        return nil;
+    }
+    return keyNSData;
 }
 
 @end

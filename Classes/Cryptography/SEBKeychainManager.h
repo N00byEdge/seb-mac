@@ -40,8 +40,10 @@
 
 @interface SEBKeychainManager : NSObject
 
+@property (strong, nonatomic) NSArray *allCertificates;
+
 - (NSArray*)getIdentitiesAndNames:(NSArray **)names;
-- (NSArray*)getTLSCertificatesAndCAs:(NSArray **)CACertificates;
+- (NSArray*)getCertificatesOfType:(certificateTypes)certificateType;
 - (NSData*)getPublicKeyHashFromCertificate:(SecCertificateRef)certificate;
 - (SecKeyRef)getPrivateKeyFromPublicKeyHash:(NSData*)publicKeyHash;
 - (SecIdentityRef)getIdentityRefFromPublicKeyHash:(NSData*)publicKeyHash;

@@ -87,6 +87,8 @@ bool insideMatrix();
 @synthesize capWindows;
 @synthesize lockdownWindows;
 
+@synthesize browserController;
+
 #pragma mark Application Delegate Methods
 
 + (void) initialize
@@ -111,6 +113,16 @@ bool insideMatrix();
     [NSValueTransformer setValueTransformer:textFieldNilToEmptyStringTransformer
                                     forName:@"NSTextFieldNilToEmptyStringTransformer"];
     
+}
+
+
+- (SEBOSXBrowserController *) browserController
+{
+    if (!browserController) {
+        browserController = [[SEBOSXBrowserController alloc] init];
+        browserController.sebController = self;
+    }
+    return browserController;
 }
 
 
@@ -157,7 +169,7 @@ bool insideMatrix();
         [[MyGlobals sharedMyGlobals] setCurrentConfigURL:sebFileURL];
         
         // Decrypt and store the .seb config file
-        if ([configFileManager storeDecryptedSEBSettings:sebData forEditing:NO]) {
+        if ([configFileManager storeDecryptedSEBSettings:sebData forEditing:NO] == storeDecryptedSEBSettingsResultSuccess) {
             // if successfull restart with new settings
             [self requestedRestart:nil];
         } else {
@@ -226,7 +238,7 @@ bool insideMatrix();
         // default SEB User Agent
         NSString *urlText = [preferences secureStringForKey:@"org_safeexambrowser_SEB_startURL"];
         NSString *defaultUserAgent = [[WebView new] userAgentForURL:[NSURL URLWithString:urlText]];
-        [[SEBBrowserController new] createSEBUserAgentFromDefaultAgent:defaultUserAgent];
+        [self.browserController createSEBUserAgentFromDefaultAgent:defaultUserAgent];
         
         // Update URL filter flags and rules
         [[SEBURLFilter sharedSEBURLFilter] updateFilterRules];
@@ -534,8 +546,7 @@ bool insideMatrix();
 
     [self clearPasteboardSavingCurrentString];
 
-    // Set up SEB Browser
-    self.browserController = [[SEBOSXBrowserController alloc] init];
+    /// Set up SEB Browser
 
     self.browserController.reinforceKioskModeRequested = YES;
     
@@ -1160,10 +1171,6 @@ bool insideMatrix(){
 }
 
 
-- (void) terminateScreencapture {
-    DDLogInfo(@"screencapture terminated");
-}
-
 - (void) regainActiveStatus: (id)sender {
 	// hide all other applications if not in debug build setting
     // Check if the app is listed in prohibited processes
@@ -1223,22 +1230,15 @@ bool insideMatrix(){
 - (void) appLaunch: (id)sender
 {
 #ifdef DEBUG
-    DDLogInfo(@"Notification:  %@", [sender name]);
+    DDLogInfo(@"%s: Notification:  %@", __FUNCTION__, [sender name]);
 #endif
     
     if ([[sender name] isEqualToString:@"NSWorkspaceDidLaunchApplicationNotification"]) {
         NSDictionary *userInfo = [sender userInfo];
         if (userInfo) {
+            // Save the information which app was started
             launchedApplication = [userInfo objectForKey:NSWorkspaceApplicationKey];
-#ifdef DEBUG
             DDLogInfo(@"launched app localizedName: %@, executableURL: %@", [launchedApplication localizedName], [launchedApplication executableURL]);
-#endif
-//            [launchedApp forceTerminate];
-//            [launchedApplication activateWithOptions:(NSApplicationActivateAllWindows | NSApplicationActivateIgnoringOtherApps)];
-//            [self requestedReinforceKioskMode:nil];
-
-            if ([[launchedApplication localizedName] isEqualToString:@""]) {
-            }
         }
     }
 }
@@ -1247,24 +1247,20 @@ bool insideMatrix(){
 - (void) spaceSwitch: (id)sender
 {
 #ifdef DEBUG
-    DDLogInfo(@"Notification:  %@", [sender name]);
+    DDLogInfo(@"%s: Notification:  %@", __FUNCTION__, [sender name]);
 #endif
     
     NSDictionary *userInfo = [sender userInfo];
-    NSRunningApplication *workspaceSwitchingApp = nil;
+    NSRunningApplication *workspaceSwitchingApp;
     if (userInfo) {
         workspaceSwitchingApp = [userInfo objectForKey:NSWorkspaceApplicationKey];
-#ifdef DEBUG
         DDLogInfo(@"App which switched Space localized name: %@, executable URL: %@", [workspaceSwitchingApp localizedName], [workspaceSwitchingApp executableURL]);
-#endif
-//        if ([[launchedApp localizedName] isEqualToString:@""]) {
-//            [launchedApp forceTerminate];
-//        }
     }
+    // If an app was started since SEB was running
     if (launchedApplication) {
-        // Reinforce kiosk mode after a delay, so eventually visible fullscreen apps get hidden again
-        [self reinforceKioskMode];
-        //    [self performSelector:@selector(requestedReinforceKioskMode:) withObject: nil afterDelay: 1];
+        // Yes: We assume it's the app which switched the space and force terminate it!
+        DDLogError(@"An app was started and switched the Space. SEB will force terminate it! (app localized name: %@, executable URL: %@)", [launchedApplication localizedName], [launchedApplication executableURL]);
+        [launchedApplication forceTerminate];
     }
 }
 
@@ -1589,13 +1585,11 @@ bool insideMatrix(){
 
 
 - (NSInteger) showEnterPasswordDialog:(NSString *)text modalForWindow:(NSWindow *)window windowTitle:(NSString *)title {
-    // User has asked to see the dialog. Display it.
-//    [passwordView setTranslatesAutoresizingMaskIntoConstraints:NO];
-
+    
     [self.enterPassword setStringValue:@""]; //reset the enterPassword NSSecureTextField
     if (title) enterPasswordDialogWindow.title = title;
     [enterPasswordDialog setStringValue:text];
-        
+    
     // If the (main) browser window is full screen, we don't show the dialog as sheet
     if (window && (self.browserController.mainBrowserWindow.isFullScreen || [self.preferencesController preferencesAreOpen])) {
         window = nil;
@@ -1625,8 +1619,74 @@ bool insideMatrix(){
 }
 
 
-- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo {
-    DDLogDebug(@"sheetDidEnd");
+- (void) showEnterUsernamePasswordDialog:(NSString *)text
+                          modalForWindow:(NSWindow *)window
+                             windowTitle:(NSString *)title
+                                username:(NSString *)username
+                           modalDelegate:(id)modalDelegate
+                          didEndSelector:(SEL)didEndSelector
+{
+    // Remember the delegate and selector of the sender
+    senderModalDelegate = modalDelegate;
+    senderDidEndSelector = didEndSelector;
+    
+    // Preset (or clear) the username field
+    [usernameTextField setStringValue:username];
+    // Reset the password field
+    [passwordSecureTextField setStringValue:@""];
+    
+    // If there isn't a preset username (from a previous, failed attempt), move cursor
+    // to the username field, otherwise to the password field
+    if (username.length == 0) {
+        [enterUsernamePasswordDialogWindow makeFirstResponder:usernameTextField];
+    } else {
+        [enterUsernamePasswordDialogWindow makeFirstResponder:passwordSecureTextField];
+    }
+    if (title) enterUsernamePasswordDialogWindow.title = title;
+    [enterUsernamePasswordText setStringValue:text];
+    
+    // If the (main) browser window is full screen, we don't show the dialog as sheet
+    if (window && (self.browserController.mainBrowserWindow.isFullScreen || [self.preferencesController preferencesAreOpen])) {
+        window = nil;
+    }
+    
+    [NSApp beginSheet: enterUsernamePasswordDialogWindow
+       modalForWindow: window
+        modalDelegate: self
+       didEndSelector: @selector(sheetDidEnd:returnCode:contextInfo:)
+          contextInfo: nil];
+}
+
+
+- (IBAction) okEnterUsernamePassword: (id)sender {
+    [NSApp endSheet:enterUsernamePasswordDialogWindow returnCode:SEBEnterPasswordOK];
+}
+
+
+- (IBAction) cancelEnterUsernamePassword: (id)sender {
+    [NSApp endSheet:enterUsernamePasswordDialogWindow returnCode:SEBEnterPasswordCancel];
+    // Reset the username field (password is always reset whenever the dialog is displayed)
+    [usernameTextField setStringValue:@""];
+}
+
+
+- (void) hideEnterUsernamePasswordDialog
+{
+    [NSApp endSheet:enterUsernamePasswordDialogWindow returnCode:SEBEnterPasswordAborted];
+    // Reset the user name field (password is always reset whenever the dialog is displayed)
+    [usernameTextField setStringValue:@""];
+}
+
+
+- (void)sheetDidEnd:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
+{
+    DDLogDebug(@"sheetDidEnd with return code: %ld", (long)returnCode);
+    
+    [sheet orderOut: self];
+
+    IMP imp = [senderModalDelegate methodForSelector:senderDidEndSelector];
+    void (*func)(id, SEL, NSString*, NSString*, NSInteger) = (void *)imp;
+    func(senderModalDelegate, senderDidEndSelector, usernameTextField.stringValue, passwordSecureTextField.stringValue, returnCode);
 }
 
 
@@ -1830,9 +1890,6 @@ bool insideMatrix(){
     // Clear Pasteboard
     [self clearPasteboardSavingCurrentString];
     
-    // Clear browser back/forward list (page cache)
-    [self.browserController clearBackForwardList];
-    
     // Check if launched SEB is placed ("installed") in an Applications folder
     [self installedInApplicationsFolder];
     
@@ -1843,8 +1900,6 @@ bool insideMatrix(){
     [[NSDocumentController sharedDocumentController] closeAllDocumentsWithDelegate:self
                                                                didCloseAllSelector:@selector(documentController:didCloseAll:contextInfo:)
                                                                        contextInfo: nil];
-    self.browserController.currentMainHost = nil;
-
     // Re-Initialize file logger if logging enabled
     [self initializeLogger];
     
@@ -1865,12 +1920,8 @@ bool insideMatrix(){
     // Check if the Force Quit window is open
     [self forceQuitWindowCheck];
     
-    // Flush cached embedded certificates
-    SEBCertServices *sc = [SEBCertServices sharedInstance];
-    [sc flushCachedCertificates];
-    
-    // Set up SEB Browser
-    self.browserController = [[SEBOSXBrowserController alloc] init];
+    // Reset SEB Browser
+    [self.browserController resetBrowser];
     
     // Reopen SEB Dock
     [self openSEBDock];

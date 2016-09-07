@@ -45,6 +45,7 @@
 
 @class SEBOSXBrowserController;
 
+
 @interface SEBBrowserWindow : NSWindow <NSWindowDelegate, NSURLDownloadDelegate, NSTextViewDelegate, WebUIDelegate, WebPolicyDelegate, WebFrameLoadDelegate, WebResourceLoadDelegate>
 
 {
@@ -53,6 +54,7 @@
     NSString *downloadPath;
     NSView *progressIndicatorHolder;
     NSURL *downloadURL;
+    NSString *lastUsername;
     
 }
 
@@ -71,6 +73,8 @@
 @property (weak) IBOutlet NSButton *hostPathPatternButton;
 @property (weak) IBOutlet NSButton *directoryPatternButton;
 @property (strong) NSView *filterMessageHolder;
+
+@property (strong) NSURLAuthenticationChallenge *pendingChallenge;
 
 @property (copy) NSString *downloadFilename;
 @property (copy) NSString *downloadFileExtension;

@@ -12,7 +12,7 @@
 #include "x509_crt.h"
 
 static const NSString *kHTTPHeaderBrowserExamKey = @"X-SafeExamBrowser-RequestHash";
-static const NSString *kSEBRequestWasProcessed = @"SEBRequestWasProcessed";
+static const NSString *kSEBRequestWasProcessed = @"X-SEBRequestWasProcessed";
 
 void mbedtls_x509_private_seb_obtainLastPublicKeyASN1Block(unsigned char **block, unsigned int *len);
 
@@ -24,7 +24,7 @@ void mbedtls_x509_private_seb_obtainLastPublicKeyASN1Block(unsigned char **block
 
 - (void)dealloc
 {
-    self.connection = nil;
+    _connection = nil;
 }
 
 + (BOOL)canInitWithRequest:(NSURLRequest *)request
@@ -45,12 +45,38 @@ void mbedtls_x509_private_seb_obtainLastPublicKeyASN1Block(unsigned char **block
     return request;
 }
 
+
+- (NSURLRequest *)connection:(NSURLConnection *)connection willSendRequest:(NSURLRequest *)request redirectResponse:(NSURLResponse *)response {
+
+    if (response) {
+        // Not sure if this "if" block is necessary, it seems not to be called anyways
+        DDLogDebug(@"%s: redirect response: %@", __FUNCTION__, response);
+
+        NSMutableURLRequest *redirect = [request mutableCopy];
+        [NSURLProtocol removePropertyForKey:(NSString *)kSEBRequestWasProcessed inRequest:redirect];
+        
+        [self.client URLProtocol:self wasRedirectedToRequest:redirect redirectResponse:response];
+        
+        return redirect;
+    }
+    return request;
+}
+
+
 - (void)startLoading
 {
     NSMutableURLRequest *request = [self.request mutableCopy];
 
     [NSURLProtocol setProperty:@YES forKey:(NSString *)kSEBRequestWasProcessed inRequest:request];
-    self.connection = [NSURLConnection connectionWithRequest:request delegate:self];
+    
+//    NSCachedURLResponse *cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request];
+//    if (cachedResponse) {
+//        [self connection:nil didReceiveResponse:[cachedResponse response]];
+//        [self connection:nil didReceiveData:[cachedResponse data]];
+//        [self connectionDidFinishLoading:nil];
+//    } else {
+        _connection = [NSURLConnection connectionWithRequest:request delegate:self];
+//    }
 }
 
 - (void)stopLoading
@@ -254,6 +280,8 @@ void mbedtls_x509_private_seb_obtainLastPublicKeyASN1Block(unsigned char **block
     
     if (authorized)
     {
+        DDLogWarn(@"%s: didReceiveAuthenticationChallenge", __FUNCTION__);
+
         NSURLCredential *credential = [NSURLCredential credentialForTrust:serverTrust];
         [challenge.sender useCredential:credential forAuthenticationChallenge:challenge];
         [self.client URLProtocol:self didReceiveAuthenticationChallenge:challenge];
@@ -261,6 +289,8 @@ void mbedtls_x509_private_seb_obtainLastPublicKeyASN1Block(unsigned char **block
     
     else
     {
+        DDLogWarn(@"%s: didCancelAuthenticationChallenge", __FUNCTION__);
+
         [challenge.sender cancelAuthenticationChallenge:challenge];
         [self.client URLProtocol:self didCancelAuthenticationChallenge:challenge];
     }

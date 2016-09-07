@@ -1,5 +1,5 @@
 //
-//  SEBBrowserController.h
+//  SEBOSXBrowserController.h
 //  SafeExamBrowser
 //
 //  Created by Daniel R. Schneider on 06/10/14.
@@ -34,6 +34,7 @@
 
 #import <Foundation/Foundation.h>
 #import <WebKit/WebKit.h>
+#import "SEBController.h"
 #import "SEBBrowserWindow.h"
 #import "SEBWebView.h"
 #import "SEBDockController.h"
@@ -42,13 +43,16 @@
 #import "SEBBrowserController.h"
 #import "SEBBrowserWindowDocument.h"
 
+@class SEBController;
 @class SEBBrowserController;
 @class SEBBrowserWindowDocument;
 @class SEBBrowserWindow;
 @class SEBWebView;
 
-@interface SEBOSXBrowserController : NSObject <WebResourceLoadDelegate>
+@interface SEBOSXBrowserController : NSObject <WebResourceLoadDelegate, SEBBrowserControllerDelegate>
 
+@property (strong) SEBController *sebController;
+@property (strong) SEBBrowserController *browserController;
 @property (strong) SEBWebView *webView;
 @property (strong) SEBBrowserWindowDocument *temporaryBrowserWindowDocument;
 @property (strong) SEBWebView *temporaryWebView;
@@ -60,6 +64,14 @@
 @property (strong) NSMutableArray *openBrowserWindowsWebViews;
 @property (strong) SEBDockItemMenu *openBrowserWindowsWebViewsMenu;
 @property (readwrite) BOOL reinforceKioskModeRequested;
+@property (readwrite) BOOL directConfigDownloadAttempted;
+@property (strong) NSURL *originalURL;
+@property (strong) NSURLCredential *enteredCredential;
+
+- (void) resetBrowser;
+
+// Save the default user agent of the installed WebKit version
+- (void) createSEBUserAgentFromDefaultAgent:(NSString *)defaultUserAgent;
 
 - (SEBWebView *) openAndShowWebView;
 - (void) closeWebView:(SEBWebView *) webViewToClose;
@@ -82,5 +94,23 @@
 
 - (void) restartDockButtonPressed;
 - (void) reloadDockButtonPressed;
+
+- (void) showEnterUsernamePasswordDialog:(NSString *)text
+                          modalForWindow:(NSWindow *)window
+                             windowTitle:(NSString *)title
+                                username:(NSString *)username
+                           modalDelegate:(id)modalDelegate
+                          didEndSelector:(SEL)didEndSelector;
+- (void) hideEnterUsernamePasswordDialog;
+
+
+/// SEBBrowserControllerDelegate Methods
+
+- (void) showEnterUsernamePasswordDialog:(NSString *)text
+                                   title:(NSString *)title
+                                username:(NSString *)username
+                           modalDelegate:(id)modalDelegate
+                          didEndSelector:(SEL)didEndSelector;
+
 
 @end

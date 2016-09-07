@@ -154,7 +154,7 @@
           toObject:[SEBEncryptedUserDefaultsController sharedSEBEncryptedUserDefaultsController]
        withKeyPath:@"values.org_safeexambrowser_SEB_allowBrowsingBackForward"
            options:nil];
-    
+        
     // Display all MIME types the WebView can display as HTML
     NSArray* MIMETypes = [WebView MIMETypesShownAsHTML];
     int i, count = [MIMETypes count];
@@ -629,7 +629,7 @@
     if (host.length == 0) {
         host = [self.URLFilterAlertURL.scheme stringByAppendingString:@":"];
     }
-    NSString *path = self.URLFilterAlertURL.path;
+    NSString *path = [self.URLFilterAlertURL.path stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"/"]];
     if (!path) {
         path = @"";
     }
@@ -956,7 +956,7 @@ willPerformClientRedirectToURL:(NSURL *)URL
        forFrame:(WebFrame *)frame
 {
     DDLogInfo(@"willPerformClientRedirectToURL: %@", URL);
-}
+}   
 
 
 // Update the URL of the current page in case of a server redirect
@@ -1007,7 +1007,7 @@ willPerformClientRedirectToURL:(NSURL *)URL
     
     if ([error code] != -999) {
         
-        if ([error code] !=  WebKitErrorFrameLoadInterruptedByPolicyChange) //this error can be ignored
+        if ([error code] !=  WebKitErrorFrameLoadInterruptedByPolicyChange && !_browserController.directConfigDownloadAttempted) //this error can be ignored
         {
             DDLogError(@"Error in %s: %@", __FUNCTION__, error.description);
 
@@ -1061,7 +1061,7 @@ willPerformClientRedirectToURL:(NSURL *)URL
     
     if (error.code != -999) {
         
-        if (error.code !=  WebKitErrorFrameLoadInterruptedByPolicyChange && error.code != 204) //these errors can be ignored (204 = Plug-in handled load)
+        if (error.code !=  WebKitErrorFrameLoadInterruptedByPolicyChange && error.code != 204 && !_browserController.directConfigDownloadAttempted) //these errors can be ignored (204 = Plug-in handled load)
         {
             //Close the About Window first, because it would hide the error alert
             [[NSNotificationCenter defaultCenter] postNotificationName:@"requestCloseAboutWindowNotification" object:self];
@@ -1183,7 +1183,10 @@ willPerformClientRedirectToURL:(NSURL *)URL
 - (void)webView:(SEBWebView *)sender resource:(id)identifier didFailLoadingWithError:(NSError *)error
  fromDataSource:(WebDataSource *)dataSource
 {
-    DDLogError(@"webView: %@ resource: %@ didFailLoadingWithError: %@ fromDataSource: %@", sender, identifier, error.description, dataSource);
+    DDLogError(@"webView: %@ resource: %@ didFailLoadingWithError: %@ fromDataSource URL: %@", sender, identifier, error.description, dataSource.unreachableURL);
+
+    // Close a temporary browser window which might have been opened for loading a config file from a SEB URL
+//    [_browserController openingConfigURLFailed];
 }
 
 
@@ -1202,10 +1205,66 @@ willPerformClientRedirectToURL:(NSURL *)URL
 
 
 // Invoked when an authentication challenge has been received for a resource
-- (void)webView:(SEBWebView *)sender resource:(id)identifier didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
+- (void)webView:(SEBWebView *)sender
+       resource:(id)identifier
+didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
  fromDataSource:(WebDataSource *)dataSource
 {
     DDLogInfo(@"webView: %@ resource: %@ didReceiveAuthenticationChallenge: %@ fromDataSource: %@", sender, identifier, challenge, dataSource);
+
+    // Allow to enter password 3 times
+    if ([challenge previousFailureCount] < 3) {
+        // Display authentication dialog
+        _pendingChallenge = challenge;
+        
+        NSString *text = [NSString stringWithFormat:@"%@://%@", challenge.protectionSpace.protocol, challenge.protectionSpace.host];
+        if ([challenge previousFailureCount] == 0) {
+            text = [NSString stringWithFormat:@"%@\n%@", NSLocalizedString(@"To proceed, you must log in to", nil), text];
+            lastUsername = @"";
+        } else {
+            text = [NSString stringWithFormat:NSLocalizedString(@"The user name or password you entered for %@ was incorrect. Make sure you’re entering them correctly, and then try again.", nil), text];
+        }
+        
+        [_browserController showEnterUsernamePasswordDialog:text
+                                             modalForWindow:self
+                                                windowTitle:NSLocalizedString(@"Authentication Required", nil)
+                                                   username:lastUsername
+                                              modalDelegate:self
+                                             didEndSelector:@selector(enteredUsername:password:returnCode:)];
+        
+    } else {
+        [[challenge sender] cancelAuthenticationChallenge:challenge];
+        // inform the user that the user name and password
+        // in the preferences are incorrect
+    }
+    
+}
+
+
+- (void)enteredUsername:(NSString *)username password:(NSString *)password returnCode:(NSInteger)returnCode
+{
+    DDLogDebug(@"Enter username password sheetDidEnd with return code: %ld", (long)returnCode);
+    
+    if (_pendingChallenge) {
+        if (returnCode == SEBEnterPasswordOK) {
+            lastUsername = username;
+            NSURLCredential *newCredential = [NSURLCredential credentialWithUser:username
+                                                                        password:password
+                                                                     persistence:NSURLCredentialPersistenceForSession];
+            [[_pendingChallenge sender] useCredential:newCredential
+                           forAuthenticationChallenge:_pendingChallenge];
+            _browserController.enteredCredential = newCredential;
+            _pendingChallenge = nil;
+        } else if (returnCode == SEBEnterPasswordCancel) {
+            [[_pendingChallenge sender] cancelAuthenticationChallenge:_pendingChallenge];
+            _browserController.enteredCredential = nil;
+            _pendingChallenge = nil;
+        } else {
+            // Any other case as when the server aborted the authentication challenge
+            _browserController.enteredCredential = nil;
+            _pendingChallenge = nil;
+        }
+    }
 }
 
 
@@ -1216,6 +1275,7 @@ didCancelAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
  fromDataSource:(WebDataSource *)dataSource
 {
     DDLogInfo(@"webView: %@ resource: %@ didCancelAuthenticationChallenge: %@ fromDataSource: %@", sender, identifier, challenge, dataSource);
+    [_browserController hideEnterUsernamePasswordDialog];
 }
 
 
@@ -1223,16 +1283,18 @@ didCancelAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
 - (NSString *) getFilenameFromHTMLAnchorElement:(DOMHTMLAnchorElement *)parentNode
 {
     NSString *filename;
-    NSString *parentOuterHTML = parentNode.outerHTML;
-    NSRange rangeOfDownloadAttribute = [parentOuterHTML rangeOfString:@" download='"];
-    if (rangeOfDownloadAttribute.location != NSNotFound) {
-        filename = [parentOuterHTML substringFromIndex:rangeOfDownloadAttribute.location + rangeOfDownloadAttribute.length];
-        filename = [filename substringToIndex:[filename rangeOfString:@"'"].location];
-    } else {
-        rangeOfDownloadAttribute = [parentOuterHTML rangeOfString:@" download=\""];
+    if ([parentNode respondsToSelector:@selector(outerHTML)]) {
+        NSString *parentOuterHTML = parentNode.outerHTML;
+        NSRange rangeOfDownloadAttribute = [parentOuterHTML rangeOfString:@" download='"];
         if (rangeOfDownloadAttribute.location != NSNotFound) {
             filename = [parentOuterHTML substringFromIndex:rangeOfDownloadAttribute.location + rangeOfDownloadAttribute.length];
-            filename = [filename substringToIndex:[filename rangeOfString:@"\""].location];
+            filename = [filename substringToIndex:[filename rangeOfString:@"'"].location];
+        } else {
+            rangeOfDownloadAttribute = [parentOuterHTML rangeOfString:@" download=\""];
+            if (rangeOfDownloadAttribute.location != NSNotFound) {
+                filename = [parentOuterHTML substringFromIndex:rangeOfDownloadAttribute.location + rangeOfDownloadAttribute.length];
+                filename = [filename substringToIndex:[filename rangeOfString:@"\""].location];
+            }
         }
     }
     return filename;
@@ -1254,19 +1316,35 @@ decisionListener:(id <WebPolicyDecisionListener>)listener {
         // Get the DOMNode from the information about the action that triggered the navigation request
         self.downloadFilename = nil;
         NSDictionary *webElementDict = [actionInformation valueForKey:@"WebActionElementKey"];
-        DOMNode *webElementDOMNode = [webElementDict valueForKey:@"WebElementDOMNode"];
-        DOMHTMLAnchorElement *parentNode = (DOMHTMLAnchorElement *)webElementDOMNode.parentNode;
-        if ([parentNode.nodeName isEqualToString:@"A"]) {
-            self.downloadFilename = [self getFilenameFromHTMLAnchorElement:parentNode];
-        } else {
-            // Check if one of the children is a anchor
-            DOMHTMLCollection *childrenNodes = parentNode.children;
-            int i;
-            for (i = 0; i < childrenNodes.length; i++) {
-                DOMHTMLAnchorElement *childNode = (DOMHTMLAnchorElement *)[childrenNodes item:i];
-                if ([childNode.nodeName isEqualToString:@"A"]) {
-                    self.downloadFilename = [self getFilenameFromHTMLAnchorElement:childNode];
-                    break;
+        if (webElementDict) {
+            DOMNode *webElementDOMNode = [webElementDict valueForKey:@"WebElementDOMNode"];
+
+            // Do we have a parentNode?
+            if ([webElementDOMNode respondsToSelector:@selector(parentNode)]) {
+            
+                // Is the parent an anchor?
+                DOMHTMLAnchorElement *parentNode = (DOMHTMLAnchorElement *)webElementDOMNode.parentNode;
+                if ([parentNode respondsToSelector:@selector(nodeName)]) {
+                    if ([parentNode.nodeName isEqualToString:@"A"]) {
+                        self.downloadFilename = [self getFilenameFromHTMLAnchorElement:parentNode];
+                    }
+                }
+                
+                // Check if one of the children of the parent node is an anchor
+                if ([parentNode respondsToSelector:@selector(children)]) {
+                    // We had to check if we get children, bad formatted HTML and
+                    // older WebKit versions would throw an exception here
+                    DOMHTMLCollection *childrenNodes = parentNode.children;
+                    int i;
+                    for (i = 0; i < childrenNodes.length; i++) {
+                        DOMHTMLAnchorElement *childNode = (DOMHTMLAnchorElement *)[childrenNodes item:i];
+                        if ([childNode respondsToSelector:@selector(nodeName)]) {
+                            if ([childNode.nodeName isEqualToString:@"A"]) {
+                                self.downloadFilename = [self getFilenameFromHTMLAnchorElement:childNode];
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1521,6 +1599,36 @@ decisionListener:(id < WebPolicyDecisionListener >)listener
     if (!theDownload) {
         DDLogError(@"Starting the download failed!"); //Inform the user that the download failed.
     }
+}
+
+
+- (BOOL)download:(NSURLDownload *)download canAuthenticateAgainstProtectionSpace:(NSURLProtectionSpace *)protectionSpace
+{
+    // We accept any username/password authentication challenges.
+    NSString *authenticationMethod = protectionSpace.authenticationMethod;
+    
+    return [authenticationMethod isEqual:NSURLAuthenticationMethodHTTPBasic] ||
+    [authenticationMethod isEqual:NSURLAuthenticationMethodHTTPDigest] ||
+    [authenticationMethod isEqual:NSURLAuthenticationMethodNTLM];
+}
+
+
+- (void)download:(NSURLDownload *)download didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
+{
+    if (_browserController.enteredCredential) {
+        [challenge.sender useCredential:_browserController.enteredCredential forAuthenticationChallenge:challenge];
+        // We reset the cached previously entered credentials, because subsequent
+        // downloads in this session won't need authentication anymore
+        _browserController.enteredCredential = nil;
+    } else {
+        [self webView:self.webView resource:nil didReceiveAuthenticationChallenge:challenge fromDataSource:nil];
+    }
+}
+
+
+- (void)download:(NSURLDownload *)download didCancelAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
+{
+    [self webView:self.webView resource:nil didCancelAuthenticationChallenge:challenge fromDataSource:nil];
 }
 
 

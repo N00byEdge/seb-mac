@@ -47,8 +47,8 @@
 
 @synthesize groupRowTableColumn;
 
-@synthesize certificatesNames;
-@synthesize certificates;
+@synthesize SSLCertificatesNames;
+@synthesize SSLCertificates;
 @synthesize identitiesNames;
 @synthesize identities;
 
@@ -95,26 +95,34 @@
     //Load settings password from user defaults
     //[self loadPrefs];
     //[chooseIdentity synchronizeTitleAndSelectedItem];
-    if (!self.certificatesNames)
+    SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
+    if (!self.SSLCertificatesNames)
     { //no certificates available yet, get them from keychain
-        SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
-        NSArray *names;
-        NSArray *certificatesInKeychain = [keychainManager getTLSCertificatesAndCAs:&names];
-        self.certificates = certificatesInKeychain;
-        self.certificatesNames = [names copy];
+
+        NSArray *SSLCertificatesInKeychain = [keychainManager getCertificatesOfType:certificateTypeSSL];
+        self.SSLCertificates = [SSLCertificatesInKeychain valueForKeyPath:@"ref"];
+        self.SSLCertificatesNames = [SSLCertificatesInKeychain valueForKeyPath:@"name"];
         [chooseCertificate removeAllItems];
         //first put "None" item in popupbutton list
         [chooseCertificate addItemWithTitle:NSLocalizedString(@"None", nil)];
-        [chooseCertificate addItemsWithTitles: self.certificatesNames];
-        
+        [chooseCertificate addItemsWithTitles: self.SSLCertificatesNames];
+    }
+    if (!self.caCertificatesNames)
+    {
+        NSArray *caCertificatesInKeychain = [keychainManager getCertificatesOfType:certificateTypeCA];
+        self.caCertificates = [caCertificatesInKeychain valueForKeyPath:@"ref"];
+        self.caCertificatesNames = [caCertificatesInKeychain valueForKeyPath:@"name"];
         [chooseCA removeAllItems];
         //first put "None" item in popupbutton list
         [chooseCA addItemWithTitle:NSLocalizedString(@"None", nil)];
-        [chooseCA addItemsWithTitles: self.certificatesNames];
+        [chooseCA addItemsWithTitles: self.caCertificatesNames];
+    }
+    if (!self.certificates)
+    {
+        self.certificates = [keychainManager getCertificatesOfType:certificateTypeSSLDebug];
     }
     if (!self.identitiesNames)
     { //no identities available yet, get them from keychain
-        SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
         NSArray *names;
         NSArray *identitiesInKeychain = [keychainManager getIdentitiesAndNames:&names];
         self.identities = identitiesInKeychain;
@@ -226,7 +234,7 @@
     host.stringValue = expressionURL.host ? expressionURL.host : @"";
 //    port.stringValue = expressionURL.port ? expressionURL.port.stringValue : @"";
     self.expressionPort = expressionURL.port ? expressionURL.port.stringValue : @"";
-    NSString *trimmedExpressionPath = [expressionURL.path stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" /"]];
+    NSString *trimmedExpressionPath = [expressionURL.path stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"/"]];
     path.stringValue = trimmedExpressionPath ? trimmedExpressionPath : @"";
     query.stringValue = expressionURL.query ? expressionURL.query : @"";
     fragment.stringValue = expressionURL.fragment ? expressionURL.fragment : @"";
@@ -275,7 +283,7 @@
 // A certificate was selected in the drop down menu
 - (IBAction) certificateSelected:(id)sender
 {
-    [self certificateSelected:sender type:certificateTypeSSLClientCertificate];
+    [self certificateSelected:sender type:certificateTypeSSL];
     
     [chooseCertificate selectItemAtIndex:0];
     [chooseCertificate synchronizeTitleAndSelectedItem];
@@ -286,12 +294,15 @@
     SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
     NSUInteger indexOfSelectedItem = [sender indexOfSelectedItem];
     if (indexOfSelectedItem) {
-        SecCertificateRef certificate = (__bridge SecCertificateRef)([self.certificates objectAtIndex:indexOfSelectedItem-1]);
+        SecCertificateRef certificate = (__bridge SecCertificateRef)([self.SSLCertificates objectAtIndex:indexOfSelectedItem-1]);
         NSData *certificateData = [keychainManager getDataForCertificate:certificate];
         
-        NSDictionary *certificateToEmbed = [NSDictionary dictionaryWithObjectsAndKeys:
+        NSMutableDictionary *certificateToEmbed = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                             [NSNumber numberWithInt:certificateType], @"type",
                                             [sender titleOfSelectedItem], @"name",
+                                            [certificateData base64EncodedStringWithOptions:0], @"certificateDataBase64",
+                                            // We also save the certificate data into the deprecated subkey certificateDataWin
+                                            // (for downwards compatibility to < SEB 2.2)
                                             [certificateData base64EncodedStringWithOptions:0], @"certificateDataWin",
                                             nil];
         [certificatesArrayController addObject:certificateToEmbed];
@@ -300,33 +311,24 @@
 }
 
 
-//- (IBAction) CASelected:(id)sender
-//{
-//    [self certificateSelected:sender type:certificateTypeCA];
-//    
-//    [chooseCA selectItemAtIndex:0];
-//    [chooseCA synchronizeTitleAndSelectedItem];
-//}
-
-
 // A CA (certificate authority) certificate was selected in the drop down menu
 - (IBAction) CASelected:(id)sender
 {
     NSUInteger indexOfSelectedItem = [sender indexOfSelectedItem];
     if (indexOfSelectedItem) {
-        SecCertificateRef certificate = (__bridge SecCertificateRef)([self.certificates objectAtIndex:indexOfSelectedItem-1]);
+        SecCertificateRef certificate = (__bridge SecCertificateRef)([self.caCertificates objectAtIndex:indexOfSelectedItem-1]);
         
         // Assume SSL type
-        NSNumber *certType = [NSNumber numberWithInt:certificateTypeSSLClientCertificate];
+        NSNumber *certType = [NSNumber numberWithInt:certificateTypeCA];
         
-        NSData *certData = CFBridgingRelease(SecCertificateCopyData(certificate));
+        NSData *certificateData = CFBridgingRelease(SecCertificateCopyData(certificate));
         
-        if (certData)
+        if (certificateData)
         {
             mbedtls_x509_crt cert;
             mbedtls_x509_crt_init(&cert);
             
-            if (mbedtls_x509_crt_parse_der(&cert, [certData bytes], [certData length]) == 0)
+            if (mbedtls_x509_crt_parse_der(&cert, [certificateData bytes], [certificateData length]) == 0)
             {
                 if (cert.ext_types & MBEDTLS_X509_EXT_BASIC_CONSTRAINTS)
                 {
@@ -336,11 +338,13 @@
                     }
                 }
                 
-                NSDictionary *certificateToEmbed = [NSDictionary dictionaryWithObjectsAndKeys:
+                NSMutableDictionary *certificateToEmbed = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                                     certType, @"type",
                                                     [sender titleOfSelectedItem], @"name",
-                                                    [NSData data], @"certificateData",          // Empty data
-                                                    [certData base64EncodedStringWithOptions:0], @"certificateDataWin",
+                                                    [certificateData base64EncodedStringWithOptions:0], @"certificateDataBase64",
+                                                    // We also save the certificate data into the deprecated subkey certificateDataWin
+                                                    // (for downwards compatibility to < SEB 2.2)
+                                                    [certificateData base64EncodedStringWithOptions:0], @"certificateDataWin",
                                                     nil];
                 [certificatesArrayController addObject:certificateToEmbed];
                 
@@ -358,7 +362,7 @@
 // An identity was selected in the drop down menu
 - (IBAction)identitySelected:(id)sender
 {
-    //get certificate from selected identity
+    // Get certificate from selected identity
     SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
     NSUInteger indexOfSelectedItem = [sender indexOfSelectedItem];
     if (indexOfSelectedItem) {
@@ -366,17 +370,117 @@
         //SecCertificateRef certificate = [keychainManager getCertificateFromIdentity:identityRef];
         NSData *certificateData = [keychainManager getDataForIdentity:identityRef];
         
-        NSDictionary *identityToEmbed = [NSDictionary dictionaryWithObjectsAndKeys:
+        NSMutableDictionary *identityToEmbed = [NSMutableDictionary dictionaryWithObjectsAndKeys:
                                          [NSNumber numberWithInt:certificateTypeIdentity], @"type",
                                          [sender titleOfSelectedItem], @"name",
                                          certificateData, @"certificateData",
-                                         @"", @"certificateDataWin",
                                          nil];
         [certificatesArrayController addObject:identityToEmbed];
         
         [chooseIdentity selectItemAtIndex:0];
         [chooseIdentity synchronizeTitleAndSelectedItem];
     }
+}
+
+
+- (IBAction) showAdvancedCertificateSheet:(id)sender
+{
+    [NSApp beginSheet: advancedCertificatesSheet
+       modalForWindow: [MBPreferencesController sharedController].window
+        modalDelegate: nil
+       didEndSelector: nil
+          contextInfo: nil];
+    [NSApp runModalForWindow: advancedCertificatesSheet];
+    // Dialog is up here.
+    [NSApp endSheet: advancedCertificatesSheet];
+    [advancedCertificatesSheet orderOut: self];
+}
+
+
+- (BOOL) addingDebugCertificate
+{
+    certificateTypes embeddCertificateType = chooseEmbeddCertificateType.indexOfSelectedItem;
+    return (embeddCertificateType == certificateTypeSSLDebug-1);
+}
+
+- (IBAction) embeddCertificateTypeChanged:(id)sender {
+    BOOL showOverrideCommonName = self.addingDebugCertificate;
+    overrideCommonName.hidden = !showOverrideCommonName;
+    overrideCommonNameLabel.hidden = !showOverrideCommonName;
+    // If the the certificate type "Debug Certificate" was selected
+    if (showOverrideCommonName) {
+        NSInteger selectedCertificateRow = advancedCertificatesList.selectedRow;
+        if (selectedCertificateRow != -1) {
+            NSString *certificateName = [advancedCertificatesArrayController valueForKeyPath:@"selection.name"];
+
+            // Set the override common name to the default name of the selected cert
+            overrideCommonName.stringValue = certificateName;
+        }
+    }
+}
+
+- (IBAction)advancedCertificateSelected:(id)sender {
+    if (chooseEmbeddCertificateType.indexOfSelectedItem == certificateTypeSSLDebug-1) {
+        // If the type of the certificate to embedd is "Debug Certificate"
+        NSInteger selectedCertificateRow = advancedCertificatesList.selectedRow;
+        if (selectedCertificateRow != -1) {
+            NSString *certificateName = [advancedCertificatesArrayController valueForKeyPath:@"selection.name"];
+            // Set the override common name to the default name of the selected cert
+            overrideCommonName.stringValue = certificateName;
+        }
+    }
+}
+
+
+- (IBAction) cancelAdvancedCertificateSheet:(id)sender
+{
+    [NSApp stopModal];
+}
+
+
+- (IBAction) embeddAdvancedCertificate:(id)sender
+{
+    certificateTypes embeddCertificateType = chooseEmbeddCertificateType.indexOfSelectedItem;
+    if (embeddCertificateType >= certificateTypeIdentity) {
+        // Correct certificate type, as here identities are not offered
+        embeddCertificateType++;
+    }
+    NSInteger selectedCertificateRow = advancedCertificatesList.selectedRow;
+    if (selectedCertificateRow != -1) {
+        NSDictionary *selectedCertificate = [advancedCertificatesArrayController selectedObjects][0];
+        SecCertificateRef certificateRef = (__bridge SecCertificateRef)[selectedCertificate objectForKey:@"ref"];
+        NSString *certificateName = [selectedCertificate objectForKey:@"name"];
+        if (embeddCertificateType == certificateTypeSSLDebug) {
+            if (overrideCommonName.stringValue.length > 0) {
+                certificateName = overrideCommonName.stringValue;
+            }
+        }
+        SEBKeychainManager *keychainManager = [[SEBKeychainManager alloc] init];
+        NSData *certificateData = [keychainManager getDataForCertificate:certificateRef];
+        if (certificateData) {
+            NSMutableDictionary *certificateToEmbed;
+            if (embeddCertificateType != certificateTypeSSLDebug) {
+                // For a SSL/TLS and CA cert we also save its data into the deprecated subkey certificateDataWin
+                // (for downwards compatibility to < SEB 2.2)
+                // ToDo: Remove in SEB 2.3
+                certificateToEmbed = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                                    [NSNumber numberWithInt:embeddCertificateType], @"type",
+                                                    certificateName, @"name",
+                                                    [certificateData base64EncodedStringWithOptions:0], @"certificateDataBase64",
+                                                    [certificateData base64EncodedStringWithOptions:0], @"certificateDataWin",
+                                                    nil];
+            } else {
+                certificateToEmbed = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+                                                    [NSNumber numberWithInt:embeddCertificateType], @"type",
+                                                    certificateName, @"name",
+                                                    [certificateData base64EncodedStringWithOptions:0], @"certificateDataBase64",
+                                                    nil];
+            }
+
+            [certificatesArrayController addObject:certificateToEmbed];
+        }
+    }
+    [NSApp stopModal];
 }
 
 
@@ -411,7 +515,6 @@
         NSMutableDictionary *proxies = [preferences secureObjectForKey:@"org_safeexambrowser_SEB_proxies"];
         id proxyEnabled = [proxies valueForKey:key];
         return proxyEnabled;
-
     }
     return 0;
     
